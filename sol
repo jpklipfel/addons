@@ -1,0 +1,1 @@
+/home/src/georchestra/config/configurations/umrsas/mapfishapp/app/addons/sol
