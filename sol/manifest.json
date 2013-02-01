@@ -6,6 +6,8 @@
     ],
     "css": ["css/sol.css"],
     "default_options": {
+        "title":  "Unite Cartographique de Sol",
+        "abstract": "obtenir les informations sur les UCS",
         "group": "Pedologie",
         "url": "http://websoltest.agrocampus-ouest.fr/webservice/getUCS",
         "format": "geojson",
