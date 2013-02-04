@@ -1,8 +1,6 @@
 /*
- * @include WPS.js
  * @include GEOR_util.js
  * @include GEOR_waiter.js
- * @include GeoExt/data/LayerStore.js
  * @include OpenLayers/Format/JSON.js
  * @include OpenLayers/Request.js
  * @include OpenLayers/Handler/Point.js
@@ -48,6 +46,18 @@ GEOR.Addons.Sol.prototype = (function() {
         };
 
     /**
+     * Property: mask
+     * {Ext.LoadMask} the catalogue's keywords panel mask
+     */
+    var mask = null;
+
+    /**
+     * Property: cnt
+     * {Ext.LoadMask} the number of responses
+     */
+    var cnt = 0 ;
+
+    /**
      * Method: createVectorLayer
      *
      * Returns:
@@ -90,41 +100,74 @@ GEOR.Addons.Sol.prototype = (function() {
      *
      */
     var getUCS = function(pt) {
-
-        url = config.url+"?lon="+pt.x+"&lat="+pt.y+"&format="+config.format+"&layers="+config.layers+"&sld="+config.sld ;
-        Ext.Ajax.request({
-            url: url,
-            method: 'GET',
-            success: function(response) {
-                if ( response.responseText.indexOf("no_uc") == -1) {
-                    console.log ("Out! ") ;
-                }else{
-                    var json = Ext.util.JSON.decode(response.responseText) ;
-                    var geojsonFormat = new OpenLayers.Format.GeoJSON();
-                    console.log (json.type+" "+json.id) ;
-                    var html = json.properties["html"];
-                    if (!vectorLayer) {
-                        vectorLayer = createVectorLayer () ; 
-                        map.addLayer(vectorLayer);
-                    }else {
-                        vectorLayer.destroyFeatures() ;
+        this.cnt = 0 ;
+        this.msg = "Le point sélectionné n'appartient à aucune des régions interrogeables :<br><b>" ;
+        GEOR.waiter.show();
+        mask && mask.show () ;
+        for (i=0 ; i < config.WEBSOL_SERVERS.length ; i++)	{
+            var url = config.WEBSOL_SERVERS[i].url+"?lon="+pt.x+"&lat="+pt.y+"&format="+config.format+"&layers="+config.WEBSOL_SERVERS[i].layers+"&sld="+config.sld ;
+            this.msg += "- " + config.WEBSOL_SERVERS[i].name + "<br>";
+            console.log ("url="+url) ;
+            Ext.Ajax.request({
+                url: url,
+                method: 'GET',
+                success: function(response) {
+                    if (response.responseText.indexOf("no_uc") == -1) {
+                        this.cnt++ ;
+                        if (this.cnt >= config.WEBSOL_SERVERS.length) { // Aucun serveur n'a retourne une unite cartographique
+                            console.log ("Aucune donnee sur le point selectionne") ;
+                            var win = new Ext.Window({
+                                title: 'Shoot Again!',
+                                autoScroll: true,
+                                initCenter : true,
+                                preventBodyReset: true,
+                                buttons: [{
+                                    text: tr("OK"),
+                                    handler: function() {
+                                        win.close();
+                                    }
+                                }],
+                                html: this.msg
+                            });
+                            mask && mask.hide();
+                            win.show();
+                        }
+                    }else{
+                        var json = Ext.util.JSON.decode(response.responseText) ;
+                        var geojsonFormat = new OpenLayers.Format.GeoJSON();
+                        console.log (json.type+" "+json.id) ;
+                        var html = json.properties["html"];
+                        if (!vectorLayer) {
+                            vectorLayer = createVectorLayer () ; 
+                            map.addLayer(vectorLayer);
+                        }else {
+                            vectorLayer.destroyFeatures() ;
+                        }
+                        vectorLayer.addFeatures(geojsonFormat.read(json));
+                        var win = new Ext.Window({
+                            title: 'Unite Cartograpique de Sol n°'+json.id,
+                            autoScroll: true,
+                            initCenter : false,
+                            x : 50,
+                            y : 50,
+                            width: 600,
+                            height: 400,
+                            preventBodyReset: true,
+                            buttons: [{
+                                text: tr("OK"),
+                                handler: function() {
+                                    win.close();
+                                }
+                            }],
+                            html: html
+                        });
+                        mask && mask.hide();
+                        win.show();
                     }
-                    vectorLayer.addFeatures(geojsonFormat.read(json));
-                    var win = new Ext.Window({
-                        title: 'Unite Cartograpique de Sol n°'+json.id,
-                        autoScroll: true,
-                        initCenter : false,
-                        x : 50,
-                        y : 50,
-                        width: 600,
-                        height: 400,
-                        preventBodyReset: true,
-                        html: html
-                    });
-                    win.show();
                 }
-            }
-        });
+            });
+        }
+        this.msg+="</b>" ;
     };
 
     /**
@@ -176,10 +219,15 @@ GEOR.Addons.Sol.prototype = (function() {
 
          init: function (addonconfig) {
             var lang = OpenLayers.Lang.getCode() ;
+            mask = new Ext.LoadMask (Ext.getBody(), {
+                msg: tr("Loading...")
+            }) ;
             map = this.map;
             config = this.options;
-            console.log ("title="+addonconfig.get("title")[lang]+" / description="+addonconfig.get("description")[lang]) ;
-            console.log ("url="+this.options.url+" / format="+this.options.format+" / layers="+this.options.layers) ;
+            console.log ("Liste des serveurs WEBSOL utilises : ") ; // debug infos
+            for (i=0 ; i < config.WEBSOL_SERVERS.length ; i++)	{
+                 console.log ("name="+config.WEBSOL_SERVERS[i].name+" / url="+config.WEBSOL_SERVERS[i].url+" / layers="+config.WEBSOL_SERVERS[i].layers) ;
+            } //
             defControlGetUCS();
             clickUCS = new OpenLayers.Control.Click();
             map.addControl(clickUCS);
@@ -201,7 +249,6 @@ GEOR.Addons.Sol.prototype = (function() {
                 menu: new Ext.menu.Menu({
                     items: [
                     new Ext.menu.CheckItem (new Ext.Action ({
-//                        id: "clickUCS",
                         iconCls: 'drawpoint',
                         text: tr("sol.getucsfromclick"),
                         map: map,
