@@ -19,6 +19,17 @@
             "Send Backward":"Enviar atrás",
             "Select a layer":"Seleccione una capa"
         },
-        "fr": {}
+        "fr": {
+            "Swipe Layers":"Changer la couche",
+            "Bring to Front":"Passer en calque",
+            "Send Backward":"Passer en couche de fond",
+            "Select a layer":"Choisissez une couche"
+        },
+        "de": {
+            "Swipe Layers":"Layer wechseln",
+            "Bring to Front":"In den obersten Layer bringen",
+            "Send Backward":"In den untersten Layer bringen",
+            "Select a layer":"Einen Layer wehlen"
+        },
     }
 }
